@@ -1,9 +1,4 @@
-flask==3.0.2
-torch==2.3.0
-diffusers>=0.32.0
-transformers>=4.40.0
-accelerate>=0.29.0
-sentencepiece
-protobuf
-opencv-python
-safetensors
+fastapi
+uvicorn
+gradio_client
+requests
