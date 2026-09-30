@@ -1,0 +1,58 @@
+name: LYRA 6-Hour Auto Refresh Engine
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Automatically runs every 6 hours
+  workflow_dispatch:       # Allows manual trigger button click
+
+jobs:
+  run-and-refresh:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: lyra-instances
+      cancel-in-progress: true # Nayi job start hote hi purani link ko kill kar degi
+
+    steps:
+    - name: Clone Repo Content
+      uses: actions/checkout@v4
+
+    - name: Initialize Runtime Environment
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Load Web UI Libraries
+      run: |
+        python -m pip install --upgrade pip
+        pip install gradio huggingface_hub requests
+
+    - name: Execute UI and Extract Link
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      run: |
+        python app.py &
+        sleep 15
+        
+        # Readme inject function block
+        if [ -f gradio_url.txt ]; then
+          URL=$(cat gradio_url.txt)
+          echo "Generated Link: $URL"
+          
+          # Replace inside placeholders markers
+          sed -i '/<!-- LYRA_LINK_START -->/,/<!-- LYRA_LINK_END -->/{//!d}' README.md
+          sed -i '/<!-- LYRA_LINK_START -->/a \### 🚀 [CLICK HERE TO OPEN LYRA APP]('"$URL"')\n\n*Last Updated: '$(date)'*' README.md
+        else
+          echo "Failed to fetch link generation payload."
+          exit 1
+        fi
+
+    - name: Commit and Push Updated Link to README
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add README.md
+        git commit -m "🔄 LYRA System Link Auto-Refresh [Cron]"
+        git push
+        
+    - name: Keep Active Session Online
+      run: sleep 21000 # Action runners ko alive rakhna background tunnels ke liye
