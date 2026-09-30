@@ -1,20 +1,20 @@
-name: LYRA 6-Hour Auto Refresh Engine
+name: Deploy LYRA Public Web Interface
 
 on:
+  push:
+    branches: [ main ]
   schedule:
-    - cron: '0 */6 * * *'  # Automatically runs every 6 hours
-  workflow_dispatch:       # Allows manual trigger button click
+    - cron: '0 */6 * * *'  # Har 6 ghante baad chalega
+  workflow_dispatch:      # Manual chalanay ka button
 
 jobs:
-  run-and-refresh:
+  launch-interface:
     runs-on: ubuntu-latest
-    concurrency:
-      group: lyra-instances
-      cancel-in-progress: true # Nayi job start hote hi purani link ko kill kar degi
-
     steps:
     - name: Clone Repo Content
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Initialize Runtime Environment
       uses: actions/setup-python@v5
@@ -29,30 +29,15 @@ jobs:
     - name: Execute UI and Extract Link
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      # Python script khud hi link nikal kar README.md overwrite kar dega
       run: |
-        python app.py &
-        sleep 15
-        
-        # Readme inject function block
-        if [ -f gradio_url.txt ]; then
-          URL=$(cat gradio_url.txt)
-          echo "Generated Link: $URL"
-          
-          # Replace inside placeholders markers
-          sed -i '/<!-- LYRA_LINK_START -->/,/<!-- LYRA_LINK_END -->/{//!d}' README.md
-          sed -i '/<!-- LYRA_LINK_START -->/a \### 🚀 [CLICK HERE TO OPEN LYRA APP]('"$URL"')\n\n*Last Updated: '$(date)'*' README.md
-        else
-          echo "Failed to fetch link generation payload."
-          exit 1
-        fi
+        timeout 5.75h python app.py || echo "Timeout reached safely for next cycle transition."
 
     - name: Commit and Push Updated Link to README
       run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@://github.com"
         git add README.md
-        git commit -m "🔄 LYRA System Link Auto-Refresh [Cron]"
-        git push
-        
-    - name: Keep Active Session Online
-      run: sleep 21000 # Action runners ko alive rakhna background tunnels ke liye
+        # Agar koi change hua hai to hi commit karega takay workflow error na de
+        git diff-index --quiet HEAD || git commit -m "🤖 Sync Engine: New Public URL Updated [Automated]"
+        git push origin main
